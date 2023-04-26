@@ -1,24 +1,29 @@
 import math
+import random
 
 import arcade
 from arcade import SpriteList, Sprite
 
-import constants
+import containers
+import shared_vars
 import powerups
 import spritescaler
 
-POWERUP_TYPES = constants.PowerupTypes
+POWERUP_TYPES = shared_vars.PowerupTypes
+
 
 class Enemy(arcade.Sprite):
     def __init__(self, x: float, y: float, base_health: int, damage: int, is_projectile: bool, width: int, height: int,
                  value: int,
-                 file: str, enemy_list: SpriteList, player: Sprite, powerup_list: SpriteList, despawn_time: float = -1):
+                 file: str, enemy_list: SpriteList, player: Sprite, powerup_list: SpriteList,
+                 damage_indicator_list: list, despawn_time: float = -1):
         super().__init__(center_x=x, center_y=y)
         self.texture = spritescaler.scale(file, width, height)
         self.health = base_health
         self.damage = damage
         self.player = player
         self.enemy_list = enemy_list
+        self.damage_indicator_list = damage_indicator_list
         self.is_projectile = is_projectile
         self.value = value
         self.despawn_time = despawn_time
@@ -30,6 +35,11 @@ class Enemy(arcade.Sprite):
 
     def sustain_damage(self, damage_amount: int) -> bool:
         self.health -= damage_amount
+        dmg_indic_offset_x = random.uniform(-10, 10)
+        dmg_indic_offset_y = random.uniform(-10, 10)
+        self.damage_indicator_list.append(
+            containers.DamageIndicator(str(min(damage_amount, damage_amount + self.health)), x=self.center_x + dmg_indic_offset_x,
+                                       y=self.center_y + dmg_indic_offset_y, display_length=1, is_score=False))
         # flash red
         self.color = (255, 0, 255)
         self.is_red = True
@@ -45,7 +55,12 @@ class Enemy(arcade.Sprite):
 
     # for special enemies
     def death_event(self):
-        return
+        dmg_indic_offset_x = random.uniform(-10, 10)
+        dmg_indic_offset_y = random.uniform(-10, 10)
+        self.damage_indicator_list.append(
+            containers.DamageIndicator("+" + str(self.value),
+                                       x=self.center_x + dmg_indic_offset_x,
+                                       y=self.center_y + dmg_indic_offset_y, display_length=1, is_score=True))
 
     def on_update(self, delta_time: float = 1 / 60):
         self.time_passed += delta_time
@@ -61,10 +76,10 @@ class Enemy(arcade.Sprite):
 class BasicProjectile(Enemy):
     def __init__(self, x: float, y: float, base_health: int, damage: int, velocity: int, angle: float, width: int,
                  height: int, value: int, file: str, enemy_list: SpriteList, player: Sprite, powerup_list: SpriteList,
-                 despawn_time: int = -1):
+                 damage_indicator_list: list, despawn_time: int = -1):
         super().__init__(file=file, x=x, y=y, base_health=base_health, damage=damage, is_projectile=True, width=width,
                          height=height, enemy_list=enemy_list, value=value, player=player, despawn_time=despawn_time,
-                         powerup_list=powerup_list)
+                         powerup_list=powerup_list, damage_indicator_list=damage_indicator_list)
         self.health = base_health
         self.angle = angle
         self.change_x = math.cos(self.angle) * velocity
@@ -80,10 +95,11 @@ class BasicProjectile(Enemy):
 class Peapod(Enemy):
     def __init__(self, x: float, y: float, base_health: int, damage: int, velocity: int, angle: float, width: int,
                  height: int, move_time: float, value: int, file: str, enemy_list: SpriteList, player: Sprite,
+                 damage_indicator_list: list,
                  powerup_list: SpriteList, despawn_time: int = -1):
         super().__init__(file=file, x=x, y=y, base_health=base_health, damage=damage, is_projectile=False, width=width,
                          height=height, enemy_list=enemy_list, value=value, player=player, despawn_time=despawn_time,
-                         powerup_list=powerup_list)
+                         powerup_list=powerup_list, damage_indicator_list=damage_indicator_list)
         self.health = base_health
         self.angle = angle
         self.change_x = math.cos(self.angle) * velocity
@@ -97,23 +113,26 @@ class Peapod(Enemy):
             self.center_y += self.change_y
 
     def death_event(self):
+        super().death_event()
         for i in range(-1, 2):
             self.enemy_list.append(
                 BasicProjectile(file="assets/images/pea.png", x=self.center_x - i * 5, y=self.center_y, base_health=1,
                                 damage=1,
                                 width=32,
                                 height=32, angle=3 / 2 * math.pi - (0.3 * i), velocity=2, enemy_list=self.enemy_list,
-                                value=1, player=self.player, powerup_list=self.powerup_list))
+                                value=1, player=self.player, powerup_list=self.powerup_list,
+                                damage_indicator_list=self.damage_indicator_list))
 
 
 class Catgirl(Enemy):
     def __init__(self, x: float, y: float, base_health: int, damage: int, downwards_velocity: float, track_speed: float,
                  width: int,
                  height: int, value: int, file: str, enemy_list: SpriteList, player: Sprite, powerup_list: SpriteList,
+                 damage_indicator_list: list,
                  despawn_time: int = -1):
         super().__init__(file=file, x=x, y=y, base_health=base_health, damage=damage, is_projectile=False, width=width,
                          height=height, enemy_list=enemy_list, value=value, player=player, despawn_time=despawn_time,
-                         powerup_list=powerup_list)
+                         powerup_list=powerup_list, damage_indicator_list=damage_indicator_list)
         self.append_texture(spritescaler.scale("assets/images/catgirl1.png", width, height))
         self.append_texture(spritescaler.scale("assets/images/catgirl2.png", width, height))
         self.set_texture(0)
@@ -134,17 +153,20 @@ class Catgirl(Enemy):
         self.center_y -= self.change_y
 
     def death_event(self):
-        # self.powerup_list.append(powerups.Powerup(self.center_x, self.center_y, 64, 64,
-        #                                           file="assets/images/nuke.png", powerup_length=10, type=POWERUP_TYPES.NUKE))
+        super().death_event()
+        self.powerup_list.append(powerups.Powerup(self.center_x, self.center_y, 64, 64,
+                                                  file="assets/images/chicken.png", powerup_length=10, type=POWERUP_TYPES.NUKE))
         return
+
 
 class Shapiro(Enemy):
     def __init__(self, x: float, y: float, base_health: int, damage: int, velocity: int, width: int,
                  height: int, move_time: float, value: int, file: str, enemy_list: SpriteList, player: Sprite,
+                 damage_indicator_list: list,
                  powerup_list: SpriteList, despawn_time: int = -1):
         super().__init__(file=file, x=x, y=y, base_health=base_health, damage=damage, is_projectile=False, width=width,
                          height=height, enemy_list=enemy_list, value=value, player=player, despawn_time=despawn_time,
-                         powerup_list=powerup_list)
+                         powerup_list=powerup_list, damage_indicator_list=damage_indicator_list)
         self.health = base_health
         self.stop_moving = move_time
         self.change_y = velocity
@@ -162,44 +184,46 @@ class Shapiro(Enemy):
                                 width=96,
                                 height=96, angle=3 / 2 * math.pi - (0.15 * ((self.next_attack % 2) + 1)), velocity=2,
                                 enemy_list=self.enemy_list,
-                                value=1, player=self.player, powerup_list=self.powerup_list))
+                                value=1, player=self.player, powerup_list=self.powerup_list, damage_indicator_list=self.damage_indicator_list))
             self.enemy_list.append(
                 BasicProjectile(file="assets/images/logic.png", x=self.center_x, y=self.center_y, base_health=1,
                                 damage=1,
                                 width=96,
                                 height=96, angle=3 / 2 * math.pi + (0.15 * ((self.next_attack % 2) + 1)), velocity=2,
                                 enemy_list=self.enemy_list,
-                                value=1, player=self.player, powerup_list=self.powerup_list))
+                                value=1, player=self.player, powerup_list=self.powerup_list, damage_indicator_list=self.damage_indicator_list))
             self.enemy_list.append(
                 BasicProjectile(file="assets/images/hypothetically.png", x=self.center_x, y=self.center_y,
                                 base_health=1,
                                 damage=1,
                                 width=128,
                                 height=128, angle=3 / 2 * math.pi, velocity=2, enemy_list=self.enemy_list,
-                                value=1, player=self.player, powerup_list=self.powerup_list))
+                                value=1, player=self.player, powerup_list=self.powerup_list, damage_indicator_list=self.damage_indicator_list))
             self.next_attack = self.time_passed + self.attack_delay
 
     def death_event(self):
+        super().death_event()
         for i in range(-4, 0):
             self.enemy_list.append(
                 BasicProjectile(file="assets/images/facts.png", x=self.center_x - i * 5, y=self.center_y, base_health=1,
                                 damage=1,
                                 width=64,
                                 height=64, angle=3 / 2 * math.pi - (0.3 * i), velocity=2, enemy_list=self.enemy_list,
-                                value=1, player=self.player, powerup_list=self.powerup_list))
+                                value=1, player=self.player, powerup_list=self.powerup_list, damage_indicator_list=self.damage_indicator_list))
         for i in range(0, 4):
             self.enemy_list.append(
                 BasicProjectile(file="assets/images/logic.png", x=self.center_x - i * 5, y=self.center_y, base_health=1,
                                 damage=1,
                                 width=64,
                                 height=64, angle=3 / 2 * math.pi - (0.3 * i), velocity=2, enemy_list=self.enemy_list,
-                                value=1, player=self.player, powerup_list=self.powerup_list))
+                                value=1, player=self.player, powerup_list=self.powerup_list, damage_indicator_list=self.damage_indicator_list))
 
 
 class Player(arcade.Sprite):
     def __init__(self, x: float, y: float, file: str, width: int, height: int):
         super().__init__(center_x=x, center_y=y)
         self.texture = spritescaler.scale(file, width, height)
+
 
 class Bullet(arcade.Sprite):
     def __init__(self, x: float, y: float, file: str, width: int, height: int, health: int):
@@ -210,6 +234,7 @@ class Bullet(arcade.Sprite):
     def sustain_damage(self, damage: int):
         self.health -= damage
         return self.health <= 0
+
 
 class Heart(arcade.Sprite):
     def __init__(self, x: float, y: float, initial_health: int, height: int, width: int):
@@ -230,5 +255,5 @@ class Heart(arcade.Sprite):
 
         return self.health <= 0
 
-    def health(self, amount: int):
+    def heal(self, amount: int):
         self.health = min(self.health + amount, self.initial_health)

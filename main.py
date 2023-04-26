@@ -17,7 +17,7 @@ import arcade
 from pathlib import Path
 
 from enum import Enum
-import constants
+import shared_vars
 import enemysummoner
 import externalsprites
 from externalsprites import Player
@@ -51,11 +51,7 @@ class ArcadeGame(arcade.Window):
         self.space_pressed = False
 
         # Game state
-        self.stage = 1
-        self.time_elapsed = 0
-        self.time_since_last_stage = 5
         self.score = 0
-
         # Player
         self.player = None
         # Player constant modifiers
@@ -64,7 +60,7 @@ class ArcadeGame(arcade.Window):
         self.player_jump_velocity = 20
         self.player_gravity = 1
         self.initial_health = 5
-        self.player_damage = 4
+        self.player_damage = 1
         self.player_fire_cooldown = 0.2
         self.player_max_bullets = 3
 
@@ -78,7 +74,8 @@ class ArcadeGame(arcade.Window):
         self.enemy_list = None
         # Powerups
         self.powerup_list = None
-
+        # Damage indicator
+        self.damage_indicator_list = None
         # Player health
         self.heart = None
 
@@ -94,18 +91,19 @@ class ArcadeGame(arcade.Window):
         # Set up the player
         sprite_image = ASSETS_PATH / "images" / "dumbbell.png"
         self.player = Player(
-            file=str(sprite_image), x=constants.WIDTH // 2, y=constants.FLOOR_HEIGHT, height=constants.PLAYER_HEIGHT, width=constants.PLAYER_WIDTH)
+            file=str(sprite_image), x=shared_vars.WIDTH // 2, y=shared_vars.FLOOR_HEIGHT, height=shared_vars.PLAYER_HEIGHT, width=shared_vars.PLAYER_WIDTH)
         self.bullet_list = arcade.SpriteList()
         self.enemy_list = arcade.SpriteList()
         self.powerup_list = arcade.SpriteList()
+        self.damage_indicator_list = []
 
-        self.heart = externalsprites.Heart(x=750, y=constants.HEIGHT - 50, initial_health=self.initial_health, width=96, height=96)
+        self.heart = externalsprites.Heart(x=750, y=shared_vars.HEIGHT - 50, initial_health=self.initial_health, width=96, height=96)
 
-        self.enemy_spawner = enemysummoner.EnemySummoner(enemy_list=self.enemy_list, width=constants.WIDTH, height=constants.HEIGHT, player=self.player, powerup_list=self.powerup_list)
+        self.enemy_spawner = enemysummoner.EnemySummoner(enemy_list=self.enemy_list, width=shared_vars.WIDTH, height=shared_vars.HEIGHT, player=self.player, powerup_list=self.powerup_list, damage_indicator_list=self.damage_indicator_list)
 
     def on_update(self, delta_time: float):
         # movement
-        self.time_elapsed += delta_time
+        shared_vars.game_timer += delta_time
         self.bullet_list.update()
         self.update_movement()
         # new sprites
@@ -136,18 +134,18 @@ class ArcadeGame(arcade.Window):
             else:
                 self.player.center_x += -self.player_move_speed
         if self.right_pressed:
-            if self.player.center_x + self.player_move_speed > constants.WIDTH:
-                self.player.center_x = constants.WIDTH
+            if self.player.center_x + self.player_move_speed > shared_vars.WIDTH:
+                self.player.center_x = shared_vars.WIDTH
             else:
                 self.player.center_x += self.player_move_speed
-        if self.up_pressed and self.player.center_y == constants.FLOOR_HEIGHT:
+        if self.up_pressed and self.player.center_y == shared_vars.FLOOR_HEIGHT:
             self.player_cur_upward_velocity = self.player_jump_velocity
-        if self.down_pressed and self.player.center_y != constants.FLOOR_HEIGHT:
+        if self.down_pressed and self.player.center_y != shared_vars.FLOOR_HEIGHT:
             fast_fall_multiplier = 4
 
         # player fall speed
-        if (self.player.center_y + self.player_cur_upward_velocity) < constants.FLOOR_HEIGHT:
-            self.player.center_y = constants.FLOOR_HEIGHT
+        if (self.player.center_y + self.player_cur_upward_velocity) < shared_vars.FLOOR_HEIGHT:
+            self.player.center_y = shared_vars.FLOOR_HEIGHT
             self.player_cur_upward_velocity = 0
         else:
             self.player.center_y += self.player_cur_upward_velocity
@@ -185,9 +183,9 @@ class ArcadeGame(arcade.Window):
             powerup.remove_from_sprite_lists()
 
     def trigger_powerup(self, type: int):
-        if type == constants.PowerupTypes.CHICKEN:
-            self.heart.health(1)
-        elif type == constants.PowerupTypes.NUKE:
+        if type == shared_vars.PowerupTypes.CHICKEN:
+            self.heart.heal(1)
+        elif type == shared_vars.PowerupTypes.NUKE:
             dead_enemies = []
             for enemy in self.enemy_list:
                 if enemy.sustain_damage(2):
@@ -195,16 +193,18 @@ class ArcadeGame(arcade.Window):
                     dead_enemies.append(enemy)
             for enemy in reversed(dead_enemies):
                 enemy.remove_from_sprite_lists()
+        elif type == shared_vars.PowerupTypes.DRUMSTICK:
+            self.heart.heal(5)
 
     def update_player_projectile(self):
-        if self.space_pressed and len(self.bullet_list) <= self.player_max_bullets and self.time_elapsed > self.player_next_fire:
+        if self.space_pressed and len(self.bullet_list) <= self.player_max_bullets and shared_vars.game_timer > self.player_next_fire:
             sprite_image = ASSETS_PATH / "images" / "dumbbell.png"
             bullet = externalsprites.Bullet(file=str(sprite_image), x=self.player.center_x, y=self.player.center_y + 50, health=self.player_damage, height=32, width=32)
             bullet.turn_left(math.pi / 2)
             bullet.change_x = math.cos(bullet.angle) * self.player_bullet_speed
             bullet.change_y = math.sin(bullet.angle) * self.player_bullet_speed
             self.bullet_list.append(bullet)
-            self.player_next_fire = self.time_elapsed + self.player_fire_cooldown
+            self.player_next_fire = shared_vars.game_timer + self.player_fire_cooldown
 
         for bullet in self.bullet_list:
             bullet.turn_left(2)
@@ -248,14 +248,22 @@ class ArcadeGame(arcade.Window):
 
         self.heart.draw()
 
+        for dmg_indi in reversed(self.damage_indicator_list):
+            if shared_vars.game_timer < dmg_indi.display_until:
+                if not dmg_indi.is_score:
+                    arcade.draw_text(start_x=dmg_indi.x, start_y=dmg_indi.y, text=dmg_indi.text)
+                else:
+                    arcade.draw_text(start_x=dmg_indi.x + 40, start_y=dmg_indi.y, text=dmg_indi.text, font_size=20, color=(255, 0, 255))
+            else:
+                self.damage_indicator_list.remove(dmg_indi)
+
         arcade.draw_text(start_x=50, start_y=40, text=str(self.score).zfill(6))
 
     def end_game(self):
         exit()
 
-
 if __name__ == "__main__":
-    arcade_game = ArcadeGame(constants.WIDTH, constants.HEIGHT, TITLE)
+    arcade_game = ArcadeGame(shared_vars.WIDTH, shared_vars.HEIGHT, TITLE)
     arcade_game.setup()
     arcade.run()
 

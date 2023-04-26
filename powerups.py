@@ -1,15 +1,15 @@
 import arcade
 
-import constants
+import shared_vars
 import spritescaler
 
 
-FLOOR_HEIGHT = constants.FLOOR_HEIGHT - (constants.PLAYER_HEIGHT / 2)
+FLOOR_HEIGHT = shared_vars.FLOOR_HEIGHT - (shared_vars.PLAYER_HEIGHT / 2)
 # invincibility (robe)
 # health (chicken)
 class Powerup(arcade.Sprite):
     def __init__(self, x: float, y: float, width: int, height: int, file: str,
-                 powerup_length: int, type: constants.PowerupTypes, velocity: int = 2):
+                 powerup_length: int, type: shared_vars.PowerupTypes, velocity: int = 2):
         super().__init__(center_x=x, center_y=y)
         self.texture = spritescaler.scale(file, width, height)
         self.velocity = velocity

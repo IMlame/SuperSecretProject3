@@ -3,16 +3,18 @@ import random
 
 from arcade import SpriteList, Sprite
 
-import constants
+import shared_vars
+
 import externalsprites
 
-HEIGHT = constants.HEIGHT
-WIDTH = constants.WIDTH
+HEIGHT = shared_vars.HEIGHT
+WIDTH = shared_vars.WIDTH
 
 class EnemySummoner:
-    def __init__(self, enemy_list: SpriteList, powerup_list: SpriteList, player: Sprite, width: int, height: int):
+    def __init__(self, enemy_list: SpriteList, powerup_list: SpriteList, player: Sprite, damage_indicator_list: list, width: int, height: int):
         self.enemy_list = enemy_list
         self.powerup_list = powerup_list
+        self.damage_indicator_list = damage_indicator_list
         self.player = player
         self.spawner_list = []
         self.width = width
@@ -30,9 +32,9 @@ class EnemySummoner:
 
     def stage_update(self):
         if self.stage == 1:
-            # self.create_shapiro_spawner(9, 10, despawn_time=30)
-            # self.create_catgirl_spawner(1, 2, track_speed=0.005, despawn_time=10)
-            self.create_broccoli_spawner(1, 7, despawn_time=5)
+            self.create_shapiro_spawner(9, 10, despawn_time=30)
+            self.create_catgirl_spawner(1, 2, track_speed=0.005, despawn_time=10)
+            # self.create_broccoli_spawner(1, 7, despawn_time=5)
         # if self.stage == 12:
         #         #     self.create_broccoli_spawner(1, 3)
         #         #     self.create_broccoli_spawner(2, 4)
@@ -48,14 +50,14 @@ class EnemySummoner:
             BroccoliSpawner(file="assets/images/broccoli.png", base_health=1, damage=1, is_projectile=True, width=32,
                             height=32,
                             spawn_min=spawn_min, spawn_max=spawn_max, y_min=HEIGHT - 20, y_max=HEIGHT - 19,
-                            enemy_list=self.enemy_list, value=1, player=self.player, powerup_list=self.powerup_list, despawn_time=despawn_time))
+                            enemy_list=self.enemy_list, value=1, player=self.player, powerup_list=self.powerup_list, despawn_time=despawn_time, damage_indicator_list=self.damage_indicator_list))
 
     def create_peapod_spawner(self, spawn_min: int, spawn_max: int, despawn_time: int):
         self.spawner_list.append(
             PeapodSpawner(file="assets/images/peapod.png", base_health=5, damage=3, is_projectile=False, width=96,
                           height=96,
                           spawn_min=spawn_min, spawn_max=spawn_max, y_min=HEIGHT + 50, y_max=HEIGHT + 51, x_min=100,
-                          x_max=700, enemy_list=self.enemy_list, value=10, player=self.player, powerup_list=self.powerup_list, despawn_time=despawn_time))
+                          x_max=700, enemy_list=self.enemy_list, value=10, player=self.player, powerup_list=self.powerup_list, despawn_time=despawn_time, damage_indicator_list=self.damage_indicator_list))
 
     def create_catgirl_spawner(self, spawn_min: int, spawn_max: int, track_speed: float, despawn_time: int):
         self.spawner_list.append(
@@ -63,7 +65,7 @@ class EnemySummoner:
                            height=256,
                            spawn_min=spawn_min, spawn_max=spawn_max, y_min=HEIGHT, y_max=HEIGHT + 1, x_min=100,
                            x_max=700, enemy_list=self.enemy_list, value=10, player=self.player,
-                           track_speed=track_speed, powerup_list=self.powerup_list, despawn_time=despawn_time))
+                           track_speed=track_speed, powerup_list=self.powerup_list, despawn_time=despawn_time, damage_indicator_list=self.damage_indicator_list))
 
     def create_shapiro_spawner(self, spawn_min: int, spawn_max: int, despawn_time: int):
         self.spawner_list.append(
@@ -71,11 +73,11 @@ class EnemySummoner:
                            height=600,
                            spawn_min=spawn_min, spawn_max=spawn_max, y_min=HEIGHT + 80, y_max=HEIGHT + 81, x_min=100,
                            x_max=700, enemy_list=self.enemy_list, value=100, player=self.player, powerup_list=
-                           self.powerup_list, despawn_time=despawn_time))
+                           self.powerup_list, despawn_time=despawn_time, damage_indicator_list=self.damage_indicator_list))
 
 
 class EnemySpawner:
-    def __init__(self, file: str, enemy_list: SpriteList, powerup_list: SpriteList, player: Sprite, base_health: int, damage: int,
+    def __init__(self, file: str, enemy_list: SpriteList, powerup_list: SpriteList, player: Sprite, damage_indicator_list: list, base_health: int, damage: int,
                  is_projectile: bool,
                  value: int,
                  width: int, height: int,
@@ -84,6 +86,7 @@ class EnemySpawner:
         self.player = player
         self.enemy_list = enemy_list
         self.powerup_list = powerup_list
+        self.damage_indicator_list = damage_indicator_list
         self.despawn_time = despawn_time
         self.base_health = base_health
         self.damage = damage
@@ -120,12 +123,12 @@ class EnemySpawner:
 
 
 class BroccoliSpawner(EnemySpawner):
-    def __init__(self, file: str, enemy_list: SpriteList, powerup_list: SpriteList, player: Sprite, base_health: int, damage: int,
+    def __init__(self, file: str, enemy_list: SpriteList, powerup_list: SpriteList, player: Sprite, damage_indicator_list: list, base_health: int, damage: int,
                  is_projectile: bool,
                  value: int,
                  width: int, height: int,
                  spawn_min: int, spawn_max: int, x_min=20, x_max=WIDTH - 20, y_min=HEIGHT - 300, y_max=HEIGHT - 20, despawn_time: int = -1):
-        super().__init__(file=file, enemy_list=enemy_list, base_health=base_health, damage=damage,
+        super().__init__(file=file, enemy_list=enemy_list, damage_indicator_list=damage_indicator_list, base_health=base_health, damage=damage,
                          is_projectile=is_projectile, value=value, width=width, height=height, spawn_min=spawn_min,
                          spawn_max=spawn_max,
                          x_min=x_min, x_max=x_max,
@@ -139,17 +142,17 @@ class BroccoliSpawner(EnemySpawner):
                                                 base_health=self.base_health,
                                                 angle=3 * math.pi / 2 + angle_offset, file=self.file, width=self.width,
                                                 height=self.height, enemy_list=self.enemy_list, value=self.value,
-                                                player=self.player, powerup_list=self.powerup_list, despawn_time=self.despawn_time)
+                                                player=self.player, powerup_list=self.powerup_list, despawn_time=self.despawn_time, damage_indicator_list=self.damage_indicator_list)
         enemy_list.append(enemy)
 
 
 class PeapodSpawner(EnemySpawner):
-    def __init__(self, file: str, enemy_list: SpriteList, powerup_list: SpriteList, player: Sprite, base_health: int, damage: int,
+    def __init__(self, file: str, enemy_list: SpriteList, powerup_list: SpriteList, player: Sprite, damage_indicator_list: list, base_health: int, damage: int,
                  is_projectile: bool,
                  value: int,
                  width: int, height: int,
                  spawn_min: int, spawn_max: int, x_min=20, x_max=WIDTH - 20, y_min=HEIGHT - 300, y_max=HEIGHT - 20, despawn_time: int = -1):
-        super().__init__(file=file, enemy_list=enemy_list, base_health=base_health, damage=damage,
+        super().__init__(file=file, enemy_list=enemy_list, damage_indicator_list=damage_indicator_list, base_health=base_health, damage=damage,
                          is_projectile=is_projectile, value=value, width=width, height=height, spawn_min=spawn_min,
                          spawn_max=spawn_max,
                          x_min=x_min, x_max=x_max,
@@ -163,18 +166,18 @@ class PeapodSpawner(EnemySpawner):
                                        base_health=self.base_health,
                                        angle=3 * math.pi / 2 + angle_offset, file=self.file, width=self.width,
                                        height=self.height, enemy_list=self.enemy_list, move_time=0.9, value=self.value,
-                                       player=self.player, powerup_list=self.powerup_list, despawn_time=self.despawn_time)
+                                       player=self.player, powerup_list=self.powerup_list, despawn_time=self.despawn_time, damage_indicator_list=self.damage_indicator_list)
         enemy_list.append(enemy)
 
 
 class CatgirlSpawner(EnemySpawner):
-    def __init__(self, file: str, enemy_list: SpriteList, powerup_list: SpriteList, player: Sprite, base_health: int, damage: int,
+    def __init__(self, file: str, enemy_list: SpriteList, powerup_list: SpriteList, player: Sprite, damage_indicator_list: list, base_health: int, damage: int,
                  is_projectile: bool,
                  value: int,
                  width: int, height: int,
                  spawn_min: int, spawn_max: int, track_speed: float, x_min=20, x_max=WIDTH - 20, y_min=HEIGHT - 300,
                  y_max=HEIGHT - 20, despawn_time: int = -1):
-        super().__init__(file=file, enemy_list=enemy_list, base_health=base_health, damage=damage,
+        super().__init__(file=file, enemy_list=enemy_list, damage_indicator_list=damage_indicator_list, base_health=base_health, damage=damage,
                          is_projectile=is_projectile, value=value, width=width, height=height, spawn_min=spawn_min,
                          spawn_max=spawn_max,
                          x_min=x_min, x_max=x_max,
@@ -188,17 +191,17 @@ class CatgirlSpawner(EnemySpawner):
                                         base_health=self.base_health,
                                         file=self.file, width=self.width,
                                         height=self.height, enemy_list=self.enemy_list, value=self.value,
-                                        player=self.player, track_speed=self.track_speed, powerup_list=self.powerup_list, despawn_time=self.despawn_time)
+                                        player=self.player, track_speed=self.track_speed, powerup_list=self.powerup_list, despawn_time=self.despawn_time, damage_indicator_list=self.damage_indicator_list)
         enemy_list.append(enemy)
 
 
 class ShapiroSpawner(EnemySpawner):
-    def __init__(self, file: str, enemy_list: SpriteList, powerup_list: SpriteList, player: Sprite, base_health: int, damage: int,
+    def __init__(self, file: str, enemy_list: SpriteList, powerup_list: SpriteList, player: Sprite, damage_indicator_list: list, base_health: int, damage: int,
                  is_projectile: bool,
                  value: int,
                  width: int, height: int,
                  spawn_min: int, spawn_max: int, x_min=20, x_max=WIDTH - 20, y_min=HEIGHT - 300, y_max=HEIGHT - 20, despawn_time: int = -1):
-        super().__init__(file=file, enemy_list=enemy_list, base_health=base_health, damage=damage,
+        super().__init__(file=file, enemy_list=enemy_list, damage_indicator_list=damage_indicator_list, base_health=base_health, damage=damage,
                          is_projectile=is_projectile, value=value, width=width, height=height, spawn_min=spawn_min,
                          spawn_max=spawn_max,
                          x_min=x_min, x_max=x_max,
@@ -211,5 +214,5 @@ class ShapiroSpawner(EnemySpawner):
                                         base_health=self.base_health,
                                         file=self.file, width=self.width,
                                         height=self.height, enemy_list=self.enemy_list, move_time=1.8, value=self.value,
-                                        player=self.player, powerup_list=self.powerup_list, despawn_time=self.despawn_time)
+                                        player=self.player, powerup_list=self.powerup_list, despawn_time=self.despawn_time, damage_indicator_list=self.damage_indicator_list)
         enemy_list.append(enemy)
