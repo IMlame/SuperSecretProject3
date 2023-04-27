@@ -19,7 +19,7 @@ class Enemy(arcade.Sprite):
                  damage_indicator_list: list, despawn_time: float = -1):
         super().__init__(center_x=x, center_y=y)
         self.texture = spritescaler.scale(file, width, height)
-        self.health = base_health
+        self.health = (base_health + shared_vars.enemy_health_add) * shared_vars.enemy_health_multiplier
         self.damage = damage
         self.player = player
         self.enemy_list = enemy_list
@@ -38,7 +38,8 @@ class Enemy(arcade.Sprite):
         dmg_indic_offset_x = random.uniform(-10, 10)
         dmg_indic_offset_y = random.uniform(-10, 10)
         self.damage_indicator_list.append(
-            containers.DamageIndicator(str(min(damage_amount, damage_amount + self.health)), x=self.center_x + dmg_indic_offset_x,
+            containers.DamageIndicator(str(min(damage_amount, damage_amount + self.health)),
+                                       x=self.center_x + dmg_indic_offset_x,
                                        y=self.center_y + dmg_indic_offset_y, display_length=1, is_score=False))
         # flash red
         self.color = (255, 0, 255)
@@ -55,12 +56,13 @@ class Enemy(arcade.Sprite):
 
     # for special enemies
     def death_event(self):
-        dmg_indic_offset_x = random.uniform(-10, 10)
-        dmg_indic_offset_y = random.uniform(-10, 10)
-        self.damage_indicator_list.append(
-            containers.DamageIndicator("+" + str(self.value),
-                                       x=self.center_x + dmg_indic_offset_x,
-                                       y=self.center_y + dmg_indic_offset_y, display_length=1, is_score=True))
+        if len(self.damage_indicator_list) < shared_vars.DAMAGE_INDICATOR_CAP:
+            dmg_indic_offset_x = random.uniform(-10, 10)
+            dmg_indic_offset_y = random.uniform(-10, 10)
+            self.damage_indicator_list.append(
+                containers.DamageIndicator("+" + str(self.value),
+                                           x=self.center_x + dmg_indic_offset_x,
+                                           y=self.center_y + dmg_indic_offset_y, display_length=1, is_score=True))
 
     def on_update(self, delta_time: float = 1 / 60):
         self.time_passed += delta_time
@@ -69,7 +71,6 @@ class Enemy(arcade.Sprite):
             self.color = (255, 255, 255)
 
         if self.despawn_time != -1 and self.time_passed > self.despawn_time:
-            self.death_event()
             self.remove_from_sprite_lists()
 
 
@@ -80,16 +81,23 @@ class BasicProjectile(Enemy):
         super().__init__(file=file, x=x, y=y, base_health=base_health, damage=damage, is_projectile=True, width=width,
                          height=height, enemy_list=enemy_list, value=value, player=player, despawn_time=despawn_time,
                          powerup_list=powerup_list, damage_indicator_list=damage_indicator_list)
-        self.health = base_health
+        self.health = (base_health + shared_vars.enemy_health_add) * shared_vars.enemy_health_multiplier
         self.angle = angle
-        self.change_x = math.cos(self.angle) * velocity
-        self.change_y = math.sin(self.angle) * velocity
+        self.change_x = math.cos(self.angle) * (velocity + shared_vars.enemy_velocity_increase)
+        self.change_y = math.sin(self.angle) * (velocity + shared_vars.enemy_velocity_increase)
 
     def on_update(self, delta_time: float = 1 / 60):
         super().on_update(delta_time)
         self.center_x += self.change_x
         self.center_y += self.change_y
         self.angle += 2
+
+    def on_death(self):
+        super().death_event()
+        # BOMB, CHICKEN, DRUMSTICK, DUMBBELL, ROBE
+        odds = [5, 10, 1000, 2, 1]
+        drop_odds = 2
+        random_powerup_drop(x=self.center_x, y=self.center_y, width=64,height=64,powerup_length=15,odds=odds,drop_odds=drop_odds,powerup_list=self.powerup_list)
 
 
 class Peapod(Enemy):
@@ -121,7 +129,12 @@ class Peapod(Enemy):
                                 width=32,
                                 height=32, angle=3 / 2 * math.pi - (0.3 * i), velocity=2, enemy_list=self.enemy_list,
                                 value=1, player=self.player, powerup_list=self.powerup_list,
-                                damage_indicator_list=self.damage_indicator_list))
+                                damage_indicator_list=self.damage_indicator_list, despawn_time=10))
+        # BOMB, CHICKEN, DRUMSTICK, DUMBBELL, ROBE
+        odds = [1, 1, 150, 1, 0]
+        drop_odds = 30
+        random_powerup_drop(x=self.center_x, y=self.center_y, width=64,height=64,powerup_length=15,odds=odds,drop_odds=drop_odds,powerup_list=self.powerup_list)
+
 
 
 class Catgirl(Enemy):
@@ -138,7 +151,7 @@ class Catgirl(Enemy):
         self.set_texture(0)
         self.texture_num = 0
         self.health = base_health
-        self.change_y = downwards_velocity
+        self.change_y = downwards_velocity + int(shared_vars.enemy_velocity_increase/2)
         self.track_speed = track_speed
 
     def on_update(self, delta_time: float = 1 / 60):
@@ -154,9 +167,10 @@ class Catgirl(Enemy):
 
     def death_event(self):
         super().death_event()
-        self.powerup_list.append(powerups.Powerup(self.center_x, self.center_y, 64, 64,
-                                                  file="assets/images/chicken.png", powerup_length=10, type=POWERUP_TYPES.NUKE))
-        return
+        # BOMB, CHICKEN, DRUMSTICK, DUMBBELL, ROBE
+        odds = [1, 60, 60, 5, 1]
+        drop_odds = 10
+        random_powerup_drop(x=self.center_x, y=self.center_y, width=64,height=64,powerup_length=15,odds=odds,drop_odds=drop_odds,powerup_list=self.powerup_list)
 
 
 class Shapiro(Enemy):
@@ -184,21 +198,24 @@ class Shapiro(Enemy):
                                 width=96,
                                 height=96, angle=3 / 2 * math.pi - (0.15 * ((self.next_attack % 2) + 1)), velocity=2,
                                 enemy_list=self.enemy_list,
-                                value=1, player=self.player, powerup_list=self.powerup_list, damage_indicator_list=self.damage_indicator_list))
+                                value=1, player=self.player, powerup_list=self.powerup_list,
+                                damage_indicator_list=self.damage_indicator_list, despawn_time=10))
             self.enemy_list.append(
                 BasicProjectile(file="assets/images/logic.png", x=self.center_x, y=self.center_y, base_health=1,
                                 damage=1,
                                 width=96,
                                 height=96, angle=3 / 2 * math.pi + (0.15 * ((self.next_attack % 2) + 1)), velocity=2,
                                 enemy_list=self.enemy_list,
-                                value=1, player=self.player, powerup_list=self.powerup_list, damage_indicator_list=self.damage_indicator_list))
+                                value=1, player=self.player, powerup_list=self.powerup_list,
+                                damage_indicator_list=self.damage_indicator_list, despawn_time=10))
             self.enemy_list.append(
                 BasicProjectile(file="assets/images/hypothetically.png", x=self.center_x, y=self.center_y,
                                 base_health=1,
                                 damage=1,
                                 width=128,
                                 height=128, angle=3 / 2 * math.pi, velocity=2, enemy_list=self.enemy_list,
-                                value=1, player=self.player, powerup_list=self.powerup_list, damage_indicator_list=self.damage_indicator_list))
+                                value=1, player=self.player, powerup_list=self.powerup_list,
+                                damage_indicator_list=self.damage_indicator_list, despawn_time=10))
             self.next_attack = self.time_passed + self.attack_delay
 
     def death_event(self):
@@ -209,14 +226,21 @@ class Shapiro(Enemy):
                                 damage=1,
                                 width=64,
                                 height=64, angle=3 / 2 * math.pi - (0.3 * i), velocity=2, enemy_list=self.enemy_list,
-                                value=1, player=self.player, powerup_list=self.powerup_list, damage_indicator_list=self.damage_indicator_list))
+                                value=1, player=self.player, powerup_list=self.powerup_list,
+                                damage_indicator_list=self.damage_indicator_list, despawn_time=10))
         for i in range(0, 4):
             self.enemy_list.append(
                 BasicProjectile(file="assets/images/logic.png", x=self.center_x - i * 5, y=self.center_y, base_health=1,
                                 damage=1,
                                 width=64,
                                 height=64, angle=3 / 2 * math.pi - (0.3 * i), velocity=2, enemy_list=self.enemy_list,
-                                value=1, player=self.player, powerup_list=self.powerup_list, damage_indicator_list=self.damage_indicator_list))
+                                value=1, player=self.player, powerup_list=self.powerup_list,
+                                damage_indicator_list=self.damage_indicator_list, despawn_time=10))
+        # BOMB, CHICKEN, DRUMSTICK, DUMBBELL, ROBE
+        odds = [10, 15, 60, 5, 4]
+        drop_odds = 25
+        random_powerup_drop(x=self.center_x, y=self.center_y, width=64,height=64,powerup_length=15,odds=odds,drop_odds=drop_odds,powerup_list=self.powerup_list)
+
 
 
 class Player(arcade.Sprite):
@@ -257,3 +281,27 @@ class Heart(arcade.Sprite):
 
     def heal(self, amount: int):
         self.health = min(self.health + amount, self.initial_health)
+        self.set_texture(int(5 * (self.health / self.initial_health)))
+
+
+def random_powerup_drop(x: float, y: float, width: int, height: int, powerup_length: 10, odds: [], drop_odds: float, powerup_list: []):
+    rand_num = random.uniform(0, 100)
+    # spawn fail
+    if rand_num > drop_odds:
+        return
+
+    total = 0
+    for i in odds:
+        total += i
+
+    picked = random.uniform(0, total)
+    print(f"picked: {picked}")
+    running_total = 0
+    powerup_to_add = None
+    for index, value in enumerate(odds):
+        running_total += value
+        if running_total >= picked:
+            powerup_to_add = powerups.Powerup(x=x, y=y, width=width, height=height, powerup_length=powerup_length, type=shared_vars.PowerupTypes(index))
+            break
+    if powerup_to_add is not None:
+        powerup_list.append(powerup_to_add)

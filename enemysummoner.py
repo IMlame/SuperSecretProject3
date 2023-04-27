@@ -31,12 +31,35 @@ class EnemySummoner:
             spawner.attempt_spawn(delta_time=delta_time, enemy_list=self.enemy_list)
 
     def stage_update(self):
+        # each stage is 1 second
         if self.stage == 1:
-            self.create_shapiro_spawner(9, 10, despawn_time=30)
-            self.create_catgirl_spawner(1, 2, track_speed=0.005, despawn_time=10)
+            self.create_broccoli_spawner(5, 8, despawn_time=15)
+        if self.stage == 10:
+            self.create_broccoli_spawner(3, 5, despawn_time=15)
+        if self.stage == 15:
+            self.create_broccoli_spawner(1, 3, despawn_time=15)
+        if self.stage == 30:
+            self.create_peapod_spawner(10, 15, despawn_time=60)
+        if self.stage == 45:
+            self.create_peapod_spawner(15, 20, despawn_time=60)
+        if self.stage == 60:
+            self.create_broccoli_spawner(1, 3, despawn_time=15)
+            self.create_broccoli_spawner(1, 3, despawn_time=15)
+            self.create_broccoli_spawner(1, 3, despawn_time=15)
+        if self.stage == 90:
+            self.spawner_list.clear()
+            self.create_catgirl_spawner(4, 5, track_speed=0.005, despawn_time=15)
+        if self.stage == 96:
+            self.spawner_list.clear()
+        if self.stage == 100:
+            for i in range(10):
+                self.create_broccoli_spawner(1, 5, despawn_time=15)
+                self.create_broccoli_spawner(1, 5, despawn_time=15)
+
+            # self.create_catgirl_spawner(1, 2, track_speed=0.005, despawn_time=10)
             # self.create_broccoli_spawner(1, 7, despawn_time=5)
         # if self.stage == 12:
-        #         #     self.create_broccoli_spawner(1, 3)
+        #         #
         #         #     self.create_broccoli_spawner(2, 4)
         #         # if self.stage == 24:
         #         #     self.create_broccoli_spawner(0, 2)
@@ -61,16 +84,16 @@ class EnemySummoner:
 
     def create_catgirl_spawner(self, spawn_min: int, spawn_max: int, track_speed: float, despawn_time: int):
         self.spawner_list.append(
-            CatgirlSpawner(file="assets/images/catgirl1.png", base_health=2, damage=2, is_projectile=False, width=256,
-                           height=256,
+            CatgirlSpawner(file="assets/images/catgirl1.png", base_health=2, damage=2, is_projectile=False, width=128,
+                           height=128,
                            spawn_min=spawn_min, spawn_max=spawn_max, y_min=HEIGHT, y_max=HEIGHT + 1, x_min=100,
                            x_max=700, enemy_list=self.enemy_list, value=10, player=self.player,
                            track_speed=track_speed, powerup_list=self.powerup_list, despawn_time=despawn_time, damage_indicator_list=self.damage_indicator_list))
 
     def create_shapiro_spawner(self, spawn_min: int, spawn_max: int, despawn_time: int):
         self.spawner_list.append(
-            ShapiroSpawner(file="assets/images/shapiro.png", base_health=30, damage=1, is_projectile=False, width=600,
-                           height=600,
+            ShapiroSpawner(file="assets/images/shapiro.png", base_health=30, damage=1, is_projectile=False, width=400,
+                           height=400,
                            spawn_min=spawn_min, spawn_max=spawn_max, y_min=HEIGHT + 80, y_max=HEIGHT + 81, x_min=100,
                            x_max=700, enemy_list=self.enemy_list, value=100, player=self.player, powerup_list=
                            self.powerup_list, despawn_time=despawn_time, damage_indicator_list=self.damage_indicator_list))
@@ -137,7 +160,7 @@ class BroccoliSpawner(EnemySpawner):
     def spawn(self, enemy_list: SpriteList):
         x, y = self.get_xy()
         angle_offset = random.uniform(-1 / 4 * math.pi, 1 / 4 * math.pi)
-        velocity = random.randint(5, 15)
+        velocity = random.randint(1, 5)
         enemy = externalsprites.BasicProjectile(x=x, y=y, damage=self.damage, velocity=velocity,
                                                 base_health=self.base_health,
                                                 angle=3 * math.pi / 2 + angle_offset, file=self.file, width=self.width,
