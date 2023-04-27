@@ -10,6 +10,7 @@ Arcade, including:
 
 # Import arcade allows the program to run in Python IDLE
 import math
+import sys
 
 import arcade
 import arcade.gui
@@ -31,10 +32,10 @@ ASSETS_PATH = Path.cwd() / "assets"
 
 
 # Classes
-class ArcadeGame(arcade.Window):
+class GameView(arcade.View):
     """The Arcade Game class"""
 
-    def __init__(self, width: float, height: float, title: str):
+    def __init__(self):
         """Create the main game window
 
         Arguments:
@@ -44,7 +45,22 @@ class ArcadeGame(arcade.Window):
         """
 
         # Call the super class init method
-        super().__init__(int(width), int(height), title)
+        super().__init__()
+        # reset args
+        shared_vars.game_timer = 0
+        shared_vars.stage = 1
+        shared_vars.score = 0
+
+        shared_vars.enemy_health_multiplier = 1
+        shared_vars.enemy_health_add = 0
+        shared_vars.enemy_velocity_increase = 1
+        shared_vars.enemy_spawn_delay_percentage = 0
+
+        if shared_vars.difficulty == shared_vars.Difficulty.IMPOSSIBLE:
+            shared_vars.enemy_rate_multiplier = 2
+            shared_vars.enemy_health_add = 2
+            shared_vars.enemy_velocity_increase = 2
+            shared_vars.enemy_spawn_delay_percentage = 0.4
         # Set control list
         self.left_pressed = False
         self.right_pressed = False
@@ -61,7 +77,7 @@ class ArcadeGame(arcade.Window):
         # will be increased to time + 15 when robe powerup collected
         self.player_robe_until = 0
         # red until
-        self.player_red_until = 0
+        self.player_colored_until = 0
         self.player_bullet_speed = 5
         self.player_move_speed = 10
         self.player_jump_velocity = 15
@@ -72,6 +88,7 @@ class ArcadeGame(arcade.Window):
         self.player_fire_cooldown = 0.2
         self.player_max_bullets = 3
         self.robe_multiplier = 1
+        self.player_combo = 0
 
         # Player state
         self.player_cur_upward_velocity = 0.0
@@ -91,7 +108,7 @@ class ArcadeGame(arcade.Window):
         # Enemy spawner
         self.enemy_spawner = None
 
-    def setup(self):
+    def on_show(self):
         """Get the game ready to play"""
 
         # Set the background color
@@ -121,7 +138,7 @@ class ArcadeGame(arcade.Window):
         self.damage_indicator_list = []
 
         self.heart = externalsprites.Heart(x=750, y=shared_vars.HEIGHT - 50, initial_health=self.initial_health,
-                                           width=96, height=96)
+                                           width=100, height=100)
 
         self.enemy_spawner = enemysummoner.EnemySummoner(enemy_list=self.enemy_list, width=shared_vars.WIDTH,
                                                          height=shared_vars.HEIGHT, player=self.player,
@@ -182,18 +199,18 @@ class ArcadeGame(arcade.Window):
                 self.player_has_robe = False
                 self.robe_multiplier = 1
         # red animation
-        if shared_vars.game_timer < self.player_red_until:
-            self.player.color = (255, 0, 255)
-        elif self.player.color != (255, 255, 255):
+        if shared_vars.game_timer >= self.player_colored_until and self.player.color != (255, 255, 255):
             self.player.color = (255, 255, 255)
+
 
     def remove_old_projectiles(self):
         for bullet in self.bullet_list:
-            if bullet.bottom > self.height or bullet.top < 0 or bullet.right < 0 or bullet.left > self.width:
+            if bullet.bottom > shared_vars.HEIGHT or bullet.top < 0 or bullet.right < 0 or bullet.left > shared_vars.WIDTH:
                 bullet.remove_from_sprite_lists()
+                self.player_combo = 0
 
         for projectile in self.enemy_list:
-            if projectile.is_projectile and projectile.bottom > self.height or projectile.top < 0 or projectile.right < 0 or projectile.left > self.width:
+            if projectile.is_projectile and projectile.bottom > shared_vars.HEIGHT or projectile.top < 0 or projectile.right < 0 or projectile.left > shared_vars.WIDTH:
                 projectile.remove_from_sprite_lists()
 
     def update_movement(self):
@@ -228,7 +245,9 @@ class ArcadeGame(arcade.Window):
         for enemy in enemy_collisions:
             if self.heart.damage(enemy.damage):
                 self.end_game()
-            self.player_red_until = shared_vars.game_timer + 0.2
+            self.player_colored_until = shared_vars.game_timer + 0.2
+            self.player.color = (255, 0, 255)
+            self.player_combo = 0
             enemy.remove_from_sprite_lists()
         # destroy shot enemies
         dead_bullets = []
@@ -236,6 +255,8 @@ class ArcadeGame(arcade.Window):
             enemies_shot = arcade.check_for_collision_with_list(bullet, self.enemy_list)
             dead_enemies = []
             for enemy in enemies_shot:
+                if not self.player_has_robe:
+                    self.player_combo += 1
                 enemy_health = enemy.health
                 if enemy.sustain_damage(bullet.health):
                     shared_vars.score += enemy.value
@@ -254,7 +275,9 @@ class ArcadeGame(arcade.Window):
 
     def trigger_powerup(self, type: int):
         if type == shared_vars.PowerupTypes.CHICKEN:
-            self.heart.heal(5)
+            self.heart.heal(8)
+            self.player_colored_until = shared_vars.game_timer + 0.2
+            self.player.color = (0, 255, 0)
         elif type == shared_vars.PowerupTypes.BOMB:
             dead_enemies = []
             for enemy in self.enemy_list:
@@ -264,15 +287,18 @@ class ArcadeGame(arcade.Window):
             for enemy in reversed(dead_enemies):
                 enemy.remove_from_sprite_lists()
         elif type == shared_vars.PowerupTypes.DRUMSTICK:
-            self.heart.heal(1)
+            self.heart.heal(2)
+            self.player_colored_until = shared_vars.game_timer + 0.2
+            self.player.color = (0, 255, 0)
         elif type == shared_vars.PowerupTypes.DUMBBELL:
             self.player_damage += 1
             self.player_dumbbell_size += .5
         elif type == shared_vars.PowerupTypes.ROBE:
-            self.heart.heal(5)
+            self.heart.heal(8)
             self.player_has_robe = True
             self.player_robe_until = max(self.player_robe_until, shared_vars.game_timer + 15)
-            self.robe_multiplier += 1
+            if self.robe_multiplier < 2:
+                self.robe_multiplier += 1
 
     def update_player_projectile(self):
         if self.space_pressed and len(
@@ -280,8 +306,8 @@ class ArcadeGame(arcade.Window):
             self.player_arms_down = shared_vars.game_timer + 0.15
             sprite_image = ASSETS_PATH / "images" / "dumbbell.png"
             bullet = externalsprites.Bullet(file=str(sprite_image), x=self.player.center_x, y=self.player.center_y + 50,
-                                            health=self.player_damage, height=32 * self.player_dumbbell_size * self.robe_multiplier,
-                                            width=32 * self.player_dumbbell_size * self.robe_multiplier)
+                                            health=self.player_damage * self.robe_multiplier, height=(32 + self.player_combo) * self.player_dumbbell_size * self.robe_multiplier,
+                                            width=(32 + self.player_combo) * self.player_dumbbell_size * self.robe_multiplier)
             bullet.turn_left(math.pi / 2)
             bullet.change_x = math.cos(bullet.angle) * self.player_bullet_speed
             bullet.change_y = math.sin(bullet.angle) * self.player_bullet_speed
@@ -342,15 +368,17 @@ class ArcadeGame(arcade.Window):
 
         arcade.draw_text(start_x=50, start_y=40, text=str(shared_vars.score).zfill(6))
 
+        arcade.draw_text(start_x=50, start_y=shared_vars.HEIGHT-75, text=str(round(shared_vars.game_timer, 2)), font_size=40)
+
     def end_game(self):
-        shared_vars.display = shared_vars.Display.END_GAME
-        self.close()
+        end_game_view = GameOverView()
+        self.window.show_view(end_game_view)
 
 
-class GameOver(arcade.Window):
-    def __init__(self, width: float, height: float, title: str):
+class GameOverView(arcade.View):
+    def __init__(self):
         # Call the super class init method
-        super().__init__(int(width), int(height), title)
+        super().__init__()
 
         self.uimanager1 = arcade.gui.UIManager()
         self.uimanager1.enable()
@@ -410,29 +438,28 @@ class GameOver(arcade.Window):
         self.uimanager2.draw()
         self.uimanager3.draw()
 
-    def setup(self):
+    def on_show(self):
         """Get the game ready to play"""
 
         # Set the background color
         arcade.set_background_color(color=arcade.color.PINK)
 
     def restart(self, event):
-        shared_vars.display = shared_vars.Display.GAME
-        self.close()
+        game_view = GameView()
+        self.window.show_view(game_view)
 
     def home(self, event):
-        shared_vars.display = shared_vars.Display.HOME
-        self.close()
+        home_view = HomeView()
+        self.window.show_view(home_view)
 
     def leave(self, event):
-        shared_vars.display = shared_vars.Display.EXIT
-        self.close()
+        arcade.close_window()
 
 
-class Home(arcade.Window):
-    def __init__(self, width: float, height: float, title: str):
+class HomeView(arcade.View):
+    def __init__(self):
         # Call the super class init method
-        super().__init__(int(width), int(height), title)
+        super().__init__()
 
         self.uimanager_start = arcade.gui.UIManager()
         self.uimanager_start.enable()
@@ -490,15 +517,16 @@ class Home(arcade.Window):
         self.uimanager_difficulty.draw()
         self.uimanager_exit.draw()
 
-    def setup(self):
+    def on_show(self):
         """Get the game ready to play"""
 
         # Set the background color
         arcade.set_background_color(color=arcade.color.PINK)
 
     def start(self, event):
-        shared_vars.display = shared_vars.Display.GAME
-        self.close()
+        game_view = GameView()
+        self.window.show_view(game_view)
+
 
     def inc(self, event):
         val = shared_vars.difficulty.value
@@ -518,31 +546,32 @@ class Home(arcade.Window):
         ))
 
     def leave(self, event):
-        shared_vars.display = shared_vars.Display.EXIT
-        self.close()
+        arcade.close_window()
 
 
 if __name__ == "__main__":
-    while shared_vars.display != shared_vars.display.EXIT:
-        if shared_vars.display == shared_vars.Display.HOME:
-            shared_vars.display = shared_vars.Display.EXIT
-            home = Home(shared_vars.WIDTH, shared_vars.HEIGHT, TITLE)
-            home.setup()
-            home.run()
-            arcade.close_window()
-        elif shared_vars.display == shared_vars.Display.GAME:
-            shared_vars.display = shared_vars.Display.EXIT
-            arcade_game = ArcadeGame(shared_vars.WIDTH, shared_vars.HEIGHT, TITLE)
-            arcade_game.setup()
-            arcade.run()
-            arcade.close_window()
-        elif shared_vars.display == shared_vars.Display.END_GAME:
-            shared_vars.display = shared_vars.Display.EXIT
-            game_over = GameOver(shared_vars.WIDTH, shared_vars.HEIGHT, TITLE)
-            game_over.setup()
-            game_over.run()
-            shared_vars.stage = 1
-            shared_vars.score = 0
-            shared_vars.game_timer = 0
-            arcade.close_window()
+    window = arcade.Window(shared_vars.WIDTH, shared_vars.HEIGHT, TITLE)
+    start_view = HomeView()
+    window.show_view(start_view)
+    arcade.run()
+    # while shared_vars.display != shared_vars.display.EXIT:
+    #     if shared_vars.display == shared_vars.Display.HOME:
+    #         shared_vars.display = shared_vars.Display.EXIT
+    #         home = Home(shared_vars.WIDTH, shared_vars.HEIGHT, TITLE)
+    #         home.setup()
+    #         home.run()
+    #         arcade.close_window()
+    #     elif shared_vars.display == shared_vars.Display.GAME:
+    #         shared_vars.display = shared_vars.Display.EXIT
+    #         arcade_game = ArcadeGame(shared_vars.WIDTH, shared_vars.HEIGHT, TITLE)
+    #         arcade_game.setup()
+    #         arcade.run()
+    #         arcade.close_window()
+    #     elif shared_vars.display == shared_vars.Display.END_GAME:
+    #         shared_vars.display = shared_vars.Display.EXIT
+    #         game_over = GameOver(shared_vars.WIDTH, shared_vars.HEIGHT, TITLE)
+    #         game_over.setup()
+    #         game_over.run()
+    #
+    #         arcade.close_window()
 

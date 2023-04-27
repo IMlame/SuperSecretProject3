@@ -31,7 +31,11 @@ class EnemySummoner:
             spawner.attempt_spawn(delta_time=delta_time, enemy_list=self.enemy_list)
 
     def stage_update(self):
-        # each stage is 1 second
+        # if self.stage == 1:
+        #     self.create_broccoli_spawner(5, 8, despawn_time=15)
+        #     self.create_peapod_spawner(10, 15, despawn_time=60)
+        #     self.create_catgirl_spawner(4, 5, track_speed=0.005, despawn_time=15)
+        #     self.create_shapiro_spawner(4, 5, despawn_time=60)
         if self.stage == 1:
             self.create_broccoli_spawner(5, 8, despawn_time=15)
         if self.stage == 10:
@@ -40,24 +44,45 @@ class EnemySummoner:
             self.create_broccoli_spawner(1, 3, despawn_time=15)
         if self.stage == 30:
             self.create_peapod_spawner(10, 15, despawn_time=60)
-        if self.stage == 45:
-            self.create_peapod_spawner(15, 20, despawn_time=60)
         if self.stage == 60:
             self.create_broccoli_spawner(1, 3, despawn_time=15)
             self.create_broccoli_spawner(1, 3, despawn_time=15)
             self.create_broccoli_spawner(1, 3, despawn_time=15)
-        if self.stage == 90:
+            self.create_peapod_spawner(15, 20, despawn_time=60)
+            self.create_broccoli_spawner(1, 3, despawn_time=15)
+            self.create_peapod_spawner(15, 20, despawn_time=60)
+        if self.stage == 120:
             self.spawner_list.clear()
             self.create_catgirl_spawner(4, 5, track_speed=0.005, despawn_time=15)
-        if self.stage == 96:
+        if self.stage == 125:
             self.spawner_list.clear()
-        if self.stage == 100:
-            for i in range(10):
+        if self.stage == 130:
+            shared_vars.enemy_health_add += 1
+            for i in range(8):
                 self.create_broccoli_spawner(1, 5, despawn_time=15)
-                self.create_broccoli_spawner(1, 5, despawn_time=15)
-
-            # self.create_catgirl_spawner(1, 2, track_speed=0.005, despawn_time=10)
-            # self.create_broccoli_spawner(1, 7, despawn_time=5)
+        if self.stage == 145:
+            shared_vars.enemy_spawn_delay_percentage += 0.3
+        if self.stage == 155:
+            shared_vars.enemy_spawn_delay_percentage += 0.3
+        if self.stage == 170:
+            shared_vars.enemy_spawn_delay_percentage -= 0.5
+            self.create_catgirl_spawner(8, 10, track_speed=0.005, despawn_time=15)
+            self.create_catgirl_spawner(8, 15, track_speed=0.005, despawn_time=15)
+        if self.stage == 200:
+            self.create_peapod_spawner(15, 20, despawn_time=60)
+            self.create_peapod_spawner(15, 20, despawn_time=60)
+        if self.stage == 240:
+            self.spawner_list.clear()
+        if self.stage == 250:
+            self.create_shapiro_spawner(4, 5, despawn_time=60)
+        if self.stage == 256:
+            self.spawner_list.clear()
+            shared_vars.enemy_velocity_increase += 3
+        if self.stage == 275:
+            for i in range(4):
+                self.create_catgirl_spawner(8, 10, track_speed=0.005, despawn_time=15)
+                self.create_catgirl_spawner(8, 15, track_speed=0.005, despawn_time=15)
+            self.create_broccoli_spawner(1, 7, despawn_time=5)
         # if self.stage == 12:
         #         #
         #         #     self.create_broccoli_spawner(2, 4)
@@ -70,30 +95,30 @@ class EnemySummoner:
 
     def create_broccoli_spawner(self, spawn_min: int, spawn_max: int, despawn_time: int):
         self.spawner_list.append(
-            BroccoliSpawner(file="assets/images/broccoli.png", base_health=1, damage=1, is_projectile=True, width=32,
-                            height=32,
+            BroccoliSpawner(file="assets/images/broccoli.png", base_health=1, damage=1, is_projectile=True, width=64,
+                            height=64,
                             spawn_min=spawn_min, spawn_max=spawn_max, y_min=HEIGHT - 20, y_max=HEIGHT - 19,
                             enemy_list=self.enemy_list, value=1, player=self.player, powerup_list=self.powerup_list, despawn_time=despawn_time, damage_indicator_list=self.damage_indicator_list))
 
     def create_peapod_spawner(self, spawn_min: int, spawn_max: int, despawn_time: int):
         self.spawner_list.append(
-            PeapodSpawner(file="assets/images/peapod.png", base_health=5, damage=3, is_projectile=False, width=96,
-                          height=96,
+            PeapodSpawner(file="assets/images/peapod.png", base_health=5, damage=3, is_projectile=False, width=100,
+                          height=100,
                           spawn_min=spawn_min, spawn_max=spawn_max, y_min=HEIGHT + 50, y_max=HEIGHT + 51, x_min=100,
                           x_max=700, enemy_list=self.enemy_list, value=10, player=self.player, powerup_list=self.powerup_list, despawn_time=despawn_time, damage_indicator_list=self.damage_indicator_list))
 
     def create_catgirl_spawner(self, spawn_min: int, spawn_max: int, track_speed: float, despawn_time: int):
         self.spawner_list.append(
-            CatgirlSpawner(file="assets/images/catgirl1.png", base_health=2, damage=2, is_projectile=False, width=128,
-                           height=128,
+            CatgirlSpawner(file="assets/images/catgirl1.png", base_health=6, damage=2, is_projectile=False, width=100,
+                           height=100,
                            spawn_min=spawn_min, spawn_max=spawn_max, y_min=HEIGHT, y_max=HEIGHT + 1, x_min=100,
                            x_max=700, enemy_list=self.enemy_list, value=10, player=self.player,
                            track_speed=track_speed, powerup_list=self.powerup_list, despawn_time=despawn_time, damage_indicator_list=self.damage_indicator_list))
 
     def create_shapiro_spawner(self, spawn_min: int, spawn_max: int, despawn_time: int):
         self.spawner_list.append(
-            ShapiroSpawner(file="assets/images/shapiro.png", base_health=30, damage=1, is_projectile=False, width=400,
-                           height=400,
+            ShapiroSpawner(file="assets/images/shapiro.png", base_health=30, damage=1, is_projectile=False, width=256,
+                           height=256,
                            spawn_min=spawn_min, spawn_max=spawn_max, y_min=HEIGHT + 80, y_max=HEIGHT + 81, x_min=100,
                            x_max=700, enemy_list=self.enemy_list, value=100, player=self.player, powerup_list=
                            self.powerup_list, despawn_time=despawn_time, damage_indicator_list=self.damage_indicator_list))
@@ -130,7 +155,7 @@ class EnemySpawner:
         self.time_elapsed += delta_time
         if self.time_elapsed > self.spawn_time:
             self.time_elapsed = 0
-            self.spawn_time = random.randint(self.spawn_min, self.spawn_max)
+            self.spawn_time = random.randint(self.spawn_min, self.spawn_max) * (1 - shared_vars.enemy_spawn_delay_percentage)
             self.spawn(enemy_list)
 
     # override

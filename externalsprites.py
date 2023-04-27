@@ -11,6 +11,8 @@ import spritescaler
 
 POWERUP_TYPES = shared_vars.PowerupTypes
 
+POWERUP_WIDTH = 64
+POWERUP_HEIGHT = 64
 
 class Enemy(arcade.Sprite):
     def __init__(self, x: float, y: float, base_health: int, damage: int, is_projectile: bool, width: int, height: int,
@@ -92,12 +94,12 @@ class BasicProjectile(Enemy):
         self.center_y += self.change_y
         self.angle += 2
 
-    def on_death(self):
+    def death_event(self):
         super().death_event()
         # BOMB, CHICKEN, DRUMSTICK, DUMBBELL, ROBE
         odds = [5, 10, 1000, 2, 1]
-        drop_odds = 2
-        random_powerup_drop(x=self.center_x, y=self.center_y, width=64,height=64,powerup_length=15,odds=odds,drop_odds=drop_odds,powerup_list=self.powerup_list)
+        drop_odds = 1
+        random_powerup_drop(x=self.center_x, y=self.center_y, width=POWERUP_WIDTH, height=POWERUP_HEIGHT,powerup_length=15,odds=odds,drop_odds=drop_odds,powerup_list=self.powerup_list)
 
 
 class Peapod(Enemy):
@@ -132,8 +134,8 @@ class Peapod(Enemy):
                                 damage_indicator_list=self.damage_indicator_list, despawn_time=10))
         # BOMB, CHICKEN, DRUMSTICK, DUMBBELL, ROBE
         odds = [1, 1, 150, 1, 0]
-        drop_odds = 30
-        random_powerup_drop(x=self.center_x, y=self.center_y, width=64,height=64,powerup_length=15,odds=odds,drop_odds=drop_odds,powerup_list=self.powerup_list)
+        drop_odds = 10
+        random_powerup_drop(x=self.center_x, y=self.center_y, width=POWERUP_WIDTH, height=POWERUP_HEIGHT,powerup_length=15,odds=odds,drop_odds=drop_odds,powerup_list=self.powerup_list)
 
 
 
@@ -170,7 +172,7 @@ class Catgirl(Enemy):
         # BOMB, CHICKEN, DRUMSTICK, DUMBBELL, ROBE
         odds = [1, 60, 60, 5, 1]
         drop_odds = 10
-        random_powerup_drop(x=self.center_x, y=self.center_y, width=64,height=64,powerup_length=15,odds=odds,drop_odds=drop_odds,powerup_list=self.powerup_list)
+        random_powerup_drop(x=self.center_x, y=self.center_y, width=POWERUP_WIDTH, height=POWERUP_HEIGHT, powerup_length=15,odds=odds,drop_odds=drop_odds,powerup_list=self.powerup_list)
 
 
 class Shapiro(Enemy):
@@ -239,7 +241,7 @@ class Shapiro(Enemy):
         # BOMB, CHICKEN, DRUMSTICK, DUMBBELL, ROBE
         odds = [10, 15, 60, 5, 4]
         drop_odds = 25
-        random_powerup_drop(x=self.center_x, y=self.center_y, width=64,height=64,powerup_length=15,odds=odds,drop_odds=drop_odds,powerup_list=self.powerup_list)
+        random_powerup_drop(x=self.center_x, y=self.center_y, width=POWERUP_WIDTH, height=POWERUP_HEIGHT,powerup_length=15,odds=odds,drop_odds=drop_odds,powerup_list=self.powerup_list)
 
 
 
@@ -265,23 +267,23 @@ class Heart(arcade.Sprite):
         super().__init__(center_x=x, center_y=y)
         self.initial_health = initial_health
         self.health = initial_health
-        for i in range(0, 6):
+        for i in range(0, 9):
             texture_name = "assets/images/hearts/" + str(i) + "heart.png"
             self.append_texture(spritescaler.scale(texture_name, height=height, width=width))
-        self.set_texture(5)
+        self.set_texture(8)
 
     def damage(self, damage: int):
         self.health -= damage
         if self.health <= 0:
             self.set_texture(0)
         else:
-            self.set_texture(int(5 * (self.health / self.initial_health)))
+            self.set_texture(int(8 * (self.health / self.initial_health)))
 
         return self.health <= 0
 
     def heal(self, amount: int):
         self.health = min(self.health + amount, self.initial_health)
-        self.set_texture(int(5 * (self.health / self.initial_health)))
+        self.set_texture(int(8 * (self.health / self.initial_health)))
 
 
 def random_powerup_drop(x: float, y: float, width: int, height: int, powerup_length: 10, odds: [], drop_odds: float, powerup_list: []):

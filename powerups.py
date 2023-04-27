@@ -5,8 +5,6 @@ import spritescaler
 
 
 FLOOR_HEIGHT = shared_vars.FLOOR_HEIGHT - (shared_vars.PLAYER_HEIGHT / 2)
-# invincibility (robe)
-# health (chicken)
 class Powerup(arcade.Sprite):
     def __init__(self, x: float, y: float, width: int, height: int,
                  powerup_length: int, type: shared_vars.PowerupTypes, velocity: int = 2):
@@ -19,9 +17,11 @@ class Powerup(arcade.Sprite):
         elif type == shared_vars.PowerupTypes.DRUMSTICK:
             file = "assets/images/drumstick.png"
         elif type == shared_vars.PowerupTypes.DUMBBELL:
-            file = "assets/images/dumbbell_upgrade.png"
+            file = "assets/images/dumbbell.png"
         elif type == shared_vars.PowerupTypes.ROBE:
             file = "assets/images/robe.png"
+            width = 100
+            height = 100
         self.texture = spritescaler.scale(file, width, height)
         self.velocity = velocity
         self.powerup_length = powerup_length
