@@ -10,6 +10,7 @@ Arcade, including:
 
 # Import arcade allows the program to run in Python IDLE
 import math
+import os
 import sys
 
 import arcade
@@ -30,11 +31,15 @@ TITLE = "Jordan VS the World"
 # Location of your assets
 ASSETS_PATH = Path.cwd() / "assets"
 
+BUTTON_STYLE = {"bg_color": (255, 192, 203), "border_color": None,
+                                                         "font_size": 20, "font_name" : "Kongtext", "border_width" : 3}
+BUTTON_WIDTH = 300
 
+APPLICATION_PATH = "" if "venv/bin" in os.path.dirname(sys.executable) else os.path.dirname(sys.executable) + "/"
+arcade.load_font(APPLICATION_PATH + "kongtext.ttf")
 # Classes
 class GameView(arcade.View):
     """The Arcade Game class"""
-
     def __init__(self):
         """Create the main game window
 
@@ -50,17 +55,13 @@ class GameView(arcade.View):
         shared_vars.game_timer = 0
         shared_vars.stage = 1
         shared_vars.score = 0
+        shared_vars.won = False
 
         shared_vars.enemy_health_multiplier = 1
         shared_vars.enemy_health_add = 0
         shared_vars.enemy_velocity_increase = 1
         shared_vars.enemy_spawn_delay_percentage = 0
 
-        if shared_vars.difficulty == shared_vars.Difficulty.IMPOSSIBLE:
-            shared_vars.enemy_rate_multiplier = 2
-            shared_vars.enemy_health_add = 2
-            shared_vars.enemy_velocity_increase = 2
-            shared_vars.enemy_spawn_delay_percentage = 0.4
         # Set control list
         self.left_pressed = False
         self.right_pressed = False
@@ -82,13 +83,14 @@ class GameView(arcade.View):
         self.player_move_speed = 10
         self.player_jump_velocity = 15
         self.player_gravity = 1
-        self.initial_health = 5
+        self.initial_health = 8
         self.player_damage = 1
         self.player_dumbbell_size = 1
         self.player_fire_cooldown = 0.2
         self.player_max_bullets = 3
         self.robe_multiplier = 1
         self.player_combo = 0
+        self.player_max_health = 8
 
         # Player state
         self.player_cur_upward_velocity = 0.0
@@ -107,6 +109,13 @@ class GameView(arcade.View):
 
         # Enemy spawner
         self.enemy_spawner = None
+
+        if shared_vars.difficulty == shared_vars.Difficulty.IMPOSSIBLE:
+            shared_vars.enemy_rate_multiplier = 2
+            shared_vars.enemy_health_add = 2
+            shared_vars.enemy_velocity_increase = 2
+            shared_vars.enemy_spawn_delay_percentage = 0.4
+            self.player_max_health = 1
 
     def on_show(self):
         """Get the game ready to play"""
@@ -137,7 +146,7 @@ class GameView(arcade.View):
         self.powerup_list = arcade.SpriteList()
         self.damage_indicator_list = []
 
-        self.heart = externalsprites.Heart(x=750, y=shared_vars.HEIGHT - 50, initial_health=self.initial_health,
+        self.heart = externalsprites.Heart(x=750, y=shared_vars.HEIGHT - 50, initial_health=self.player_max_health,
                                            width=100, height=100)
 
         self.enemy_spawner = enemysummoner.EnemySummoner(enemy_list=self.enemy_list, width=shared_vars.WIDTH,
@@ -161,6 +170,10 @@ class GameView(arcade.View):
         self.remove_old_projectiles()
         # player animation state
         self.player_img_update()
+
+        if shared_vars.DIFFICULTY_LENGTH[shared_vars.difficulty.value] - shared_vars.game_timer < 0:
+            shared_vars.won = True
+            self.end_game()
 
     def player_img_update(self):
         # robe
@@ -199,7 +212,8 @@ class GameView(arcade.View):
                 self.player_has_robe = False
                 self.robe_multiplier = 1
         # red animation
-        if shared_vars.game_timer >= self.player_colored_until and self.player.color != (255, 255, 255):
+        if (shared_vars.game_timer >= self.player_robe_until) and self.player.color != (255, 255, 255):
+            print("reset color")
             self.player.color = (255, 255, 255)
 
 
@@ -207,7 +221,9 @@ class GameView(arcade.View):
         for bullet in self.bullet_list:
             if bullet.bottom > shared_vars.HEIGHT or bullet.top < 0 or bullet.right < 0 or bullet.left > shared_vars.WIDTH:
                 bullet.remove_from_sprite_lists()
-                self.player_combo = 0
+                # combo breaks if player doesn't have robe (with 3 second grace period)
+                if not bullet.hit_something() and not self.player_has_robe and shared_vars.game_timer - self.player_robe_until > 3:
+                    self.player_combo = 0
 
         for projectile in self.enemy_list:
             if projectile.is_projectile and projectile.bottom > shared_vars.HEIGHT or projectile.top < 0 or projectile.right < 0 or projectile.left > shared_vars.WIDTH:
@@ -243,7 +259,7 @@ class GameView(arcade.View):
         # check for player and enemy collisions
         enemy_collisions = arcade.check_for_collision_with_list(self.player, self.enemy_list)
         for enemy in enemy_collisions:
-            if self.heart.damage(enemy.damage):
+            if not self.player_has_robe and self.heart.damage(enemy.damage):
                 self.end_game()
             self.player_colored_until = shared_vars.game_timer + 0.2
             self.player.color = (255, 0, 255)
@@ -257,6 +273,21 @@ class GameView(arcade.View):
             for enemy in enemies_shot:
                 if not self.player_has_robe:
                     self.player_combo += 1
+                    if self.player_combo == 25:
+                        # BOMB, CHICKEN, DRUMSTICK, DUMBBELL, ROBE
+                        odds = [15, 15, 0, 15, 5]
+                        externalsprites.random_powerup_drop(x=400, y=800, width=64, height=64,powerup_length=8,drop_odds=100, odds=odds, powerup_list=self.powerup_list)
+                    elif self.player_combo % 100 == 0:
+                        # BOMB, CHICKEN, DRUMSTICK, DUMBBELL, ROBE
+                        odds = [20, 0, 0, 20, 60]
+                        externalsprites.random_powerup_drop(x=400, y=800, width=64, height=64, powerup_length=8,
+                                                            drop_odds=100, odds=odds, powerup_list=self.powerup_list)
+                    elif self.player_combo % 50 == 0:
+                        # BOMB, CHICKEN, DRUMSTICK, DUMBBELL, ROBE
+                        odds = [30, 0, 0, 30, 20]
+                        externalsprites.random_powerup_drop(x=400, y=800, width=64, height=64,powerup_length=8,drop_odds=100, odds=odds, powerup_list=self.powerup_list)
+
+
                 enemy_health = enemy.health
                 if enemy.sustain_damage(bullet.health):
                     shared_vars.score += enemy.value
@@ -281,8 +312,9 @@ class GameView(arcade.View):
         elif type == shared_vars.PowerupTypes.BOMB:
             dead_enemies = []
             for enemy in self.enemy_list:
-                if enemy.sustain_damage(2):
+                if enemy.sustain_damage(2 * shared_vars.enemy_health_add * shared_vars.enemy_health_multiplier):
                     shared_vars.score += enemy.value
+                    self.player_combo += 1
                     dead_enemies.append(enemy)
             for enemy in reversed(dead_enemies):
                 enemy.remove_from_sprite_lists()
@@ -296,7 +328,8 @@ class GameView(arcade.View):
         elif type == shared_vars.PowerupTypes.ROBE:
             self.heart.heal(8)
             self.player_has_robe = True
-            self.player_robe_until = max(self.player_robe_until, shared_vars.game_timer + 15)
+            self.player.color = (30, 255, 255)
+            self.player_robe_until = max(self.player_robe_until, shared_vars.game_timer + 10)
             if self.robe_multiplier < 2:
                 self.robe_multiplier += 1
 
@@ -305,9 +338,10 @@ class GameView(arcade.View):
                 self.bullet_list) <= self.player_max_bullets * self.robe_multiplier and shared_vars.game_timer > self.player_next_fire:
             self.player_arms_down = shared_vars.game_timer + 0.15
             sprite_image = ASSETS_PATH / "images" / "dumbbell.png"
+            capped_combo = min(50, self.player_combo)
             bullet = externalsprites.Bullet(file=str(sprite_image), x=self.player.center_x, y=self.player.center_y + 50,
-                                            health=self.player_damage * self.robe_multiplier, height=(32 + self.player_combo) * self.player_dumbbell_size * self.robe_multiplier,
-                                            width=(32 + self.player_combo) * self.player_dumbbell_size * self.robe_multiplier)
+                                            health=self.player_damage * self.robe_multiplier + int(capped_combo / 10), height=(32 + int(capped_combo / 10) * 10) * self.player_dumbbell_size * self.robe_multiplier,
+                                            width=(32 + int(capped_combo / 10) * 10) * self.player_dumbbell_size * self.robe_multiplier)
             bullet.turn_left(math.pi / 2)
             bullet.change_x = math.cos(bullet.angle) * self.player_bullet_speed
             bullet.change_y = math.sin(bullet.angle) * self.player_bullet_speed
@@ -328,6 +362,9 @@ class GameView(arcade.View):
             self.left_pressed = True
         elif key == arcade.key.SPACE or key == arcade.key.LSHIFT:
             self.space_pressed = True
+        elif key == arcade.key.ESCAPE:
+            home_view = HomeView()
+            self.window.show_view(home_view)
 
     def on_key_release(self, key: int, modifiers: int):
         if key == arcade.key.UP or key == arcade.key.W:
@@ -366,9 +403,12 @@ class GameView(arcade.View):
             else:
                 self.damage_indicator_list.remove(dmg_indi)
 
-        arcade.draw_text(start_x=50, start_y=40, text=str(shared_vars.score).zfill(6))
-
-        arcade.draw_text(start_x=50, start_y=shared_vars.HEIGHT-75, text=str(round(shared_vars.game_timer, 2)), font_size=40)
+        # score
+        arcade.draw_text(start_x=50, start_y=40, text=str(shared_vars.score).zfill(6), font_name='Kongtext')
+        # time left
+        arcade.draw_text(start_x=670, start_y=40, text=str(max(round(shared_vars.DIFFICULTY_LENGTH[shared_vars.difficulty.value] - shared_vars.game_timer, 2), 0)), font_name='Kongtext')
+        # combo
+        arcade.draw_text(start_x=50, start_y=shared_vars.HEIGHT - 75, text= "Combo: " + str(self.player_combo), font_size=30, font_name='Kongtext')
 
     def end_game(self):
         end_game_view = GameOverView()
@@ -391,18 +431,15 @@ class GameOverView(arcade.View):
 
         # Creating Button using UIFlatButton
         restart_button = arcade.gui.UIFlatButton(text="Restart", x=shared_vars.WIDTH / 2, y=shared_vars.HEIGHT / 2,
-                                                 style={"bg_color": (255, 192, 203), "border_color": (255, 255, 255),
-                                                        "font_size": 20}, width=200)
+                                                 style=BUTTON_STYLE, width=BUTTON_WIDTH)
         restart_button.on_click = self.restart
 
         home_button = arcade.gui.UIFlatButton(text="Home", x=shared_vars.WIDTH / 2, y=shared_vars.HEIGHT / 2,
-                                              style={"bg_color": (255, 192, 203), "border_color": (255, 255, 255),
-                                                     "font_size": 20}, width=200)
+                                              style=BUTTON_STYLE, width=BUTTON_WIDTH)
         home_button.on_click = self.home
 
         exit_button = arcade.gui.UIFlatButton(text="Exit", x=shared_vars.WIDTH / 2, y=shared_vars.HEIGHT / 2,
-                                              style={"bg_color": (255, 192, 203), "border_color": (255, 255, 255),
-                                                     "font_size": 20}, width=200)
+                                              style=BUTTON_STYLE, width=BUTTON_WIDTH)
         exit_button.on_click = self.leave
         # Adding button in our uimanager
         self.uimanager1.add(
@@ -430,10 +467,16 @@ class GameOverView(arcade.View):
     def on_draw(self):
         # Start the rendering pass
         arcade.start_render()
-        arcade.draw_text(start_x=0, start_y=shared_vars.HEIGHT / 2 + 150, text=str("GAME OVER :("), font_size=50,
-                         align='center', width=800)
+        title_string = ""
+        if shared_vars.won:
+            title_string = "YOU WIN :)"
+        else:
+            title_string = "GAME OVER :("
+        arcade.draw_lrtb_rectangle_outline(left=50,right=750,top=550,bottom=290,border_width=8,color=(255,255,255))
+        arcade.draw_text(start_x=0, start_y=shared_vars.HEIGHT / 2 + 150, text=title_string, font_size=40,
+                         align='center', width=800, font_name='Kongtext')
         arcade.draw_text(start_x=0, start_y=shared_vars.HEIGHT / 2 + 50, text=str("Score: " + str(shared_vars.score)),
-                         font_size=30, align='center', width=800)
+                         font_size=30, align='center', width=800, font_name='Kongtext')
         self.uimanager1.draw()
         self.uimanager2.draw()
         self.uimanager3.draw()
@@ -447,6 +490,7 @@ class GameOverView(arcade.View):
     def restart(self, event):
         game_view = GameView()
         self.window.show_view(game_view)
+
 
     def home(self, event):
         home_view = HomeView()
@@ -467,23 +511,29 @@ class HomeView(arcade.View):
         self.uimanager_difficulty = arcade.gui.UIManager()
         self.uimanager_difficulty.enable()
 
+        self.uimanager_mode = arcade.gui.UIManager()
+        self.uimanager_mode.enable()
+
         self.uimanager_exit = arcade.gui.UIManager()
         self.uimanager_exit.enable()
 
         # Creating Button using UIFlatButton
         self.start_game = arcade.gui.UIFlatButton(text="Start Game", x=shared_vars.WIDTH / 2, y=shared_vars.HEIGHT / 2,
-                                                  style={"bg_color": (255, 192, 203), "border_color": (255, 255, 255),
-                                                         "font_size": 20}, width=200)
+                                                  style=BUTTON_STYLE, width=BUTTON_WIDTH, height=50)
         self.start_game.on_click = self.start
         self.difficulty_button = arcade.gui.UIFlatButton(
             text=shared_vars.DIFFICULTY_MAP.get(shared_vars.difficulty.value), x=shared_vars.WIDTH / 2,
             y=shared_vars.HEIGHT / 2,
-            style={"bg_color": (255, 192, 203), "border_color": (255, 255, 255),
-                   "font_size": 20}, width=200)
+            style=BUTTON_STYLE, width=BUTTON_WIDTH)
         self.difficulty_button.on_click = self.inc
+        mode_text = "CLASSIC" if not shared_vars.WACKY else "SICK MODE"
+        self.mode_button = arcade.gui.UIFlatButton(
+            text=mode_text, x=shared_vars.WIDTH / 2,
+            y=shared_vars.HEIGHT / 2,
+            style=BUTTON_STYLE, width=BUTTON_WIDTH)
+        self.mode_button.on_click = self.mode_switch
         self.exit_button = arcade.gui.UIFlatButton(text="Exit", x=shared_vars.WIDTH / 2, y=shared_vars.HEIGHT / 2,
-                                                   style={"bg_color": (255, 192, 203), "border_color": (255, 255, 255),
-                                                          "font_size": 20}, width=200)
+                                                   style=BUTTON_STYLE, width=BUTTON_WIDTH)
         self.exit_button.on_click = self.leave
         # Adding button in our uimanager
         self.uimanager_start.add(
@@ -500,21 +550,31 @@ class HomeView(arcade.View):
                 align_y=-50
             )
         ))
+        self.uimanager_mode.add((
+            arcade.gui.UIAnchorWidget(
+                anchor_x="center_x",
+                anchor_y="center_y",
+                child=self.mode_button,
+                align_y=-100
+            )
+        ))
         self.uimanager_exit.add(
             arcade.gui.UIAnchorWidget(
                 anchor_x="center_x",
                 anchor_y="center_y",
                 child=self.exit_button,
-                align_y=-100)
+                align_y=-150)
         )
 
     def on_draw(self):
         # Start the rendering pass
         arcade.start_render()
+        arcade.draw_lrtb_rectangle_outline(left=50,right=750,top=550,bottom=300,border_width=8,color=(255,255,255))
         arcade.draw_text(start_x=0, start_y=shared_vars.HEIGHT / 2 + 150, text=str(TITLE), font_size=50,
-                         align='center', width=800)
+                         align='center', width=800, font_name='Kongtext')
         self.uimanager_start.draw()
         self.uimanager_difficulty.draw()
+        self.uimanager_mode.draw()
         self.uimanager_exit.draw()
 
     def on_show(self):
@@ -545,6 +605,10 @@ class HomeView(arcade.View):
             )
         ))
 
+    def mode_switch(self, event):
+        shared_vars.WACKY = not shared_vars.WACKY
+        self.mode_button.text = "CLASSIC" if not shared_vars.WACKY else "SICK MODE"
+
     def leave(self, event):
         arcade.close_window()
 
@@ -554,24 +618,4 @@ if __name__ == "__main__":
     start_view = HomeView()
     window.show_view(start_view)
     arcade.run()
-    # while shared_vars.display != shared_vars.display.EXIT:
-    #     if shared_vars.display == shared_vars.Display.HOME:
-    #         shared_vars.display = shared_vars.Display.EXIT
-    #         home = Home(shared_vars.WIDTH, shared_vars.HEIGHT, TITLE)
-    #         home.setup()
-    #         home.run()
-    #         arcade.close_window()
-    #     elif shared_vars.display == shared_vars.Display.GAME:
-    #         shared_vars.display = shared_vars.Display.EXIT
-    #         arcade_game = ArcadeGame(shared_vars.WIDTH, shared_vars.HEIGHT, TITLE)
-    #         arcade_game.setup()
-    #         arcade.run()
-    #         arcade.close_window()
-    #     elif shared_vars.display == shared_vars.Display.END_GAME:
-    #         shared_vars.display = shared_vars.Display.EXIT
-    #         game_over = GameOver(shared_vars.WIDTH, shared_vars.HEIGHT, TITLE)
-    #         game_over.setup()
-    #         game_over.run()
-    #
-    #         arcade.close_window()
 

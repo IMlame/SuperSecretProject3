@@ -9,11 +9,18 @@ class PowerupTypes(Enum):
 
 class Difficulty(Enum):
     EASY = 0
-    IMPOSSIBLE = 1
+    MEDIUM = 1
+    HARD = 2
+    IMPOSSIBLE = 3
+    WHACKY = 4
 
-MAX_DIFFICULTY_NUM = 1
+MAX_DIFFICULTY_NUM = 3
 
-DIFFICULTY_MAP = {0 : "Easy", 1 : "Impossible"}
+DIFFICULTY_MAP = {0 : "Easy", 1 : "Medium", 2 : "Hard", 3 : "Impossible"}
+
+DIFFICULTY_LENGTH = {0 : 60, 1 : 150, 2 : 240, 3 : 300}
+
+WACKY = False
 
 WIDTH = 800
 HEIGHT = 600
@@ -27,6 +34,7 @@ difficulty = Difficulty.EASY
 game_timer = 0
 stage = 1
 score = 0
+won = False
 
 enemy_health_multiplier = 1
 enemy_health_add = 0

@@ -3,7 +3,6 @@ import arcade
 import shared_vars
 import spritescaler
 
-
 FLOOR_HEIGHT = shared_vars.FLOOR_HEIGHT - (shared_vars.PLAYER_HEIGHT / 2)
 class Powerup(arcade.Sprite):
     def __init__(self, x: float, y: float, width: int, height: int,

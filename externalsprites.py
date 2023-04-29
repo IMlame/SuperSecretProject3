@@ -36,20 +36,22 @@ class Enemy(arcade.Sprite):
         self.stop_red = 0
 
     def sustain_damage(self, damage_amount: int) -> bool:
-        self.health -= damage_amount
-        dmg_indic_offset_x = random.uniform(-10, 10)
-        dmg_indic_offset_y = random.uniform(-10, 10)
-        self.damage_indicator_list.append(
-            containers.DamageIndicator(str(min(damage_amount, damage_amount + self.health)),
-                                       x=self.center_x + dmg_indic_offset_x,
-                                       y=self.center_y + dmg_indic_offset_y, display_length=1, is_score=False))
-        # flash red
-        self.color = (255, 0, 255)
-        self.is_red = True
-        self.stop_red = self.time_passed + 0.25
-        if self.health <= 0:
-            self.death_event()
-            return True
+        if damage_amount > 0:
+            self.health -= damage_amount
+            dmg_indic_offset_x = random.uniform(-10, 10)
+            dmg_indic_offset_y = random.uniform(-10, 10)
+            self.damage_indicator_list.append(
+                containers.DamageIndicator(str(min(damage_amount, damage_amount + self.health)),
+                                           x=self.center_x + dmg_indic_offset_x,
+                                           y=self.center_y + dmg_indic_offset_y, display_length=1, is_score=False))
+            # flash red
+            self.color = (255, 0, 255)
+            self.is_red = True
+            self.stop_red = self.time_passed + 0.25
+            if self.health <= 0:
+                self.death_event()
+                return True
+            return False
         return False
 
     # for enemies that attack
@@ -57,14 +59,15 @@ class Enemy(arcade.Sprite):
         return
 
     # for special enemies
-    def death_event(self):
-        if len(self.damage_indicator_list) < shared_vars.DAMAGE_INDICATOR_CAP:
-            dmg_indic_offset_x = random.uniform(-10, 10)
-            dmg_indic_offset_y = random.uniform(-10, 10)
-            self.damage_indicator_list.append(
-                containers.DamageIndicator("+" + str(self.value),
-                                           x=self.center_x + dmg_indic_offset_x,
-                                           y=self.center_y + dmg_indic_offset_y, display_length=1, is_score=True))
+    def death_event(self, expired: bool = False):
+        if not expired:
+            if len(self.damage_indicator_list) < shared_vars.DAMAGE_INDICATOR_CAP:
+                dmg_indic_offset_x = random.uniform(-10, 10)
+                dmg_indic_offset_y = random.uniform(-10, 10)
+                self.damage_indicator_list.append(
+                    containers.DamageIndicator("+" + str(self.value),
+                                               x=self.center_x + dmg_indic_offset_x,
+                                               y=self.center_y + dmg_indic_offset_y, display_length=1, is_score=True))
 
     def on_update(self, delta_time: float = 1 / 60):
         self.time_passed += delta_time
@@ -73,20 +76,21 @@ class Enemy(arcade.Sprite):
             self.color = (255, 255, 255)
 
         if self.despawn_time != -1 and self.time_passed > self.despawn_time:
+            self.death_event(expired=True)
             self.remove_from_sprite_lists()
 
 
 class BasicProjectile(Enemy):
     def __init__(self, x: float, y: float, base_health: int, damage: int, velocity: int, angle: float, width: int,
                  height: int, value: int, file: str, enemy_list: SpriteList, player: Sprite, powerup_list: SpriteList,
-                 damage_indicator_list: list, despawn_time: int = -1):
+                 damage_indicator_list: list, despawn_time: int = -1, drop_odds: int = 3):
         super().__init__(file=file, x=x, y=y, base_health=base_health, damage=damage, is_projectile=True, width=width,
                          height=height, enemy_list=enemy_list, value=value, player=player, despawn_time=despawn_time,
                          powerup_list=powerup_list, damage_indicator_list=damage_indicator_list)
-        self.health = (base_health + shared_vars.enemy_health_add) * shared_vars.enemy_health_multiplier
         self.angle = angle
         self.change_x = math.cos(self.angle) * (velocity + shared_vars.enemy_velocity_increase)
         self.change_y = math.sin(self.angle) * (velocity + shared_vars.enemy_velocity_increase)
+        self.drop_odds = drop_odds
 
     def on_update(self, delta_time: float = 1 / 60):
         super().on_update(delta_time)
@@ -94,12 +98,11 @@ class BasicProjectile(Enemy):
         self.center_y += self.change_y
         self.angle += 2
 
-    def death_event(self):
-        super().death_event()
+    def death_event(self, expired: bool = False):
+        super().death_event(expired= expired)
         # BOMB, CHICKEN, DRUMSTICK, DUMBBELL, ROBE
-        odds = [5, 10, 1000, 2, 1]
-        drop_odds = 1
-        random_powerup_drop(x=self.center_x, y=self.center_y, width=POWERUP_WIDTH, height=POWERUP_HEIGHT,powerup_length=15,odds=odds,drop_odds=drop_odds,powerup_list=self.powerup_list)
+        odds = [5, 10, 100, 2, 1]
+        random_powerup_drop(x=self.center_x, y=self.center_y, width=POWERUP_WIDTH, height=POWERUP_HEIGHT,powerup_length=15,odds=odds,drop_odds=self.drop_odds,powerup_list=self.powerup_list)
 
 
 class Peapod(Enemy):
@@ -122,14 +125,14 @@ class Peapod(Enemy):
             self.center_x += self.change_x
             self.center_y += self.change_y
 
-    def death_event(self):
-        super().death_event()
+    def death_event(self, expired: bool = False):
+        super().death_event(expired=expired)
         for i in range(-1, 2):
             self.enemy_list.append(
                 BasicProjectile(file="assets/images/pea.png", x=self.center_x - i * 5, y=self.center_y, base_health=1,
                                 damage=1,
-                                width=32,
-                                height=32, angle=3 / 2 * math.pi - (0.3 * i), velocity=2, enemy_list=self.enemy_list,
+                                width=64,
+                                height=64, angle=3 / 2 * math.pi - (0.3 * i), velocity=2, enemy_list=self.enemy_list,
                                 value=1, player=self.player, powerup_list=self.powerup_list,
                                 damage_indicator_list=self.damage_indicator_list, despawn_time=10))
         # BOMB, CHICKEN, DRUMSTICK, DUMBBELL, ROBE
@@ -167,11 +170,11 @@ class Catgirl(Enemy):
             self.texture_num = 0
         self.center_y -= self.change_y
 
-    def death_event(self):
-        super().death_event()
+    def death_event(self, expired: bool = False):
+        super().death_event(expired=expired)
         # BOMB, CHICKEN, DRUMSTICK, DUMBBELL, ROBE
-        odds = [1, 60, 60, 5, 1]
-        drop_odds = 10
+        odds = [20, 60, 60, 10, 5]
+        drop_odds = 20
         random_powerup_drop(x=self.center_x, y=self.center_y, width=POWERUP_WIDTH, height=POWERUP_HEIGHT, powerup_length=15,odds=odds,drop_odds=drop_odds,powerup_list=self.powerup_list)
 
 
@@ -187,7 +190,7 @@ class Shapiro(Enemy):
         self.stop_moving = move_time
         self.change_y = velocity
         self.next_attack = 0
-        self.attack_delay = 3
+        self.attack_delay = 4
 
     def on_update(self, delta_time: float = 1 / 60):
         super().on_update(delta_time)
@@ -220,8 +223,8 @@ class Shapiro(Enemy):
                                 damage_indicator_list=self.damage_indicator_list, despawn_time=10))
             self.next_attack = self.time_passed + self.attack_delay
 
-    def death_event(self):
-        super().death_event()
+    def death_event(self, expired: bool = False):
+        super().death_event(expired=expired)
         for i in range(-4, 0):
             self.enemy_list.append(
                 BasicProjectile(file="assets/images/facts.png", x=self.center_x - i * 5, y=self.center_y, base_health=1,
@@ -239,8 +242,8 @@ class Shapiro(Enemy):
                                 value=1, player=self.player, powerup_list=self.powerup_list,
                                 damage_indicator_list=self.damage_indicator_list, despawn_time=10))
         # BOMB, CHICKEN, DRUMSTICK, DUMBBELL, ROBE
-        odds = [10, 15, 60, 5, 4]
-        drop_odds = 25
+        odds = [10, 30, 50, 5, 5]
+        drop_odds = 30
         random_powerup_drop(x=self.center_x, y=self.center_y, width=POWERUP_WIDTH, height=POWERUP_HEIGHT,powerup_length=15,odds=odds,drop_odds=drop_odds,powerup_list=self.powerup_list)
 
 
@@ -256,10 +259,14 @@ class Bullet(arcade.Sprite):
         super().__init__(center_x=x, center_y=y)
         self.texture = spritescaler.scale(file, width, height)
         self.health = health
+        self.original_health = health
 
     def sustain_damage(self, damage: int):
         self.health -= damage
         return self.health <= 0
+
+    def hit_something(self) -> bool:
+        return self.health is not self.original_health
 
 
 class Heart(arcade.Sprite):
@@ -270,7 +277,7 @@ class Heart(arcade.Sprite):
         for i in range(0, 9):
             texture_name = "assets/images/hearts/" + str(i) + "heart.png"
             self.append_texture(spritescaler.scale(texture_name, height=height, width=width))
-        self.set_texture(8)
+        self.set_texture(initial_health)
 
     def damage(self, damage: int):
         self.health -= damage
@@ -297,7 +304,6 @@ def random_powerup_drop(x: float, y: float, width: int, height: int, powerup_len
         total += i
 
     picked = random.uniform(0, total)
-    print(f"picked: {picked}")
     running_total = 0
     powerup_to_add = None
     for index, value in enumerate(odds):
